@@ -154,6 +154,12 @@ model Tenant {
   budgetVersions BudgetVersion[]
   jobs           Job[]
   sequences      DocumentSequence[]
+  ncrs           NCR[]
+  rfis           RFI[]
+  progressClaims ProgressClaim[]
+  documents      Document[]
+  notifications  Notification[]
+  dailyLogs      DailyLog[]
 
   @@map("tenants")
 }
@@ -450,6 +456,11 @@ model Project {
   wbsNodes       WBSNode[]
   budgetVersions BudgetVersion[]
   jobs           Job[]
+  ncrs           NCR[]
+  rfis           RFI[]
+  progressClaims ProgressClaim[]
+  documents      Document[]
+  dailyLogs      DailyLog[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -475,8 +486,11 @@ model WBSNode {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  rabLines RABLine[]
-  jobs     Job[]
+  rabLines          RABLine[]
+  jobs              Job[]
+  ncrs              NCR[]
+  rfis              RFI[]
+  progressClaimLines ProgressClaimLine[]
 
   @@unique([projectId, code])
   @@index([projectId, parentId])
@@ -509,7 +523,8 @@ model BudgetVersion {
   createdBy   String    @db.Uuid
   updatedBy   String    @db.Uuid
 
-  rabLines RABLine[]
+  rabLines       RABLine[]
+  progressClaims ProgressClaim[]
 
   @@unique([projectId, version])
   @@map("budget_versions")
@@ -666,4 +681,319 @@ model DocumentSequence {
 
   @@unique([tenantId, prefix, projectCode, yearMonth])
   @@map("document_sequences")
+}
+
+// ─────────────────────────────────────────
+// PHASE 2+ ENUMS
+// ─────────────────────────────────────────
+
+enum NCRStatus {
+  OPEN
+  UNDER_REVIEW
+  AWAITING_CLOSURE
+  CLOSED
+  VOID
+}
+
+enum RFIStatus {
+  DRAFT
+  ISSUED
+  RESPONDED
+  CLARIFICATION_NEEDED
+  CLOSED
+  VOID
+}
+
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CERTIFIED
+  PAID
+  VOID
+}
+
+enum DocumentStatus {
+  DRAFT
+  IFA
+  IFR
+  IFC
+  IFI
+  APPROVED
+  REJECTED
+  SUPERSEDED
+  VOID
+}
+
+enum DocumentDiscipline {
+  CIVIL
+  STRUCTURAL
+  MECHANICAL
+  ELECTRICAL
+  INSTRUMENTATION
+  PIPING
+  HVAC
+  SAFETY
+  GENERAL
+}
+
+enum NotificationType {
+  JOB_STATUS_CHANGED
+  JOB_ASSIGNED
+  JOB_OVERDUE
+  NCR_RAISED
+  NCR_CLOSED
+  RFI_ISSUED
+  RFI_RESPONDED
+  CLAIM_SUBMITTED
+  CLAIM_APPROVED
+  CLAIM_REJECTED
+  BUDGET_ALERT
+  PROJECT_MILESTONE
+  SYSTEM
+}
+
+// ─────────────────────────────────────────
+// NCR — Non-Conformance Report
+// ─────────────────────────────────────────
+
+model NCR {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String    @db.Uuid
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  projectId        String    @db.Uuid
+  project          Project   @relation(fields: [projectId], references: [id])
+  wbsNodeId        String?   @db.Uuid
+  wbsNode          WBSNode?  @relation(fields: [wbsNodeId], references: [id])
+  ncrNo            String    @unique @db.VarChar(50)
+  title            String    @db.VarChar(300)
+  description      String    @db.Text
+  category         String    @db.VarChar(50)
+  severity         String    @db.VarChar(20)
+  status           NCRStatus @default(OPEN)
+  location         String?   @db.VarChar(200)
+  discipline       String?   @db.VarChar(50)
+  raisedBy         String    @db.Uuid
+  raisedAt         DateTime  @default(now())
+  assignedTo       String?   @db.Uuid
+  dueDate          DateTime?
+  rootCause        String?   @db.Text
+  correctiveAction String?   @db.Text
+  preventiveAction String?   @db.Text
+  closedBy         String?   @db.Uuid
+  closedAt         DateTime?
+  closureNotes     String?   @db.Text
+  evidence         Json[]    @default([])
+  linkedJobId      String?   @db.Uuid
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([tenantId, projectId, status])
+  @@index([tenantId, status])
+  @@map("ncrs")
+}
+
+// ─────────────────────────────────────────
+// RFI — Request for Information
+// ─────────────────────────────────────────
+
+model RFI {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String    @db.Uuid
+  tenant               Tenant    @relation(fields: [tenantId], references: [id])
+  projectId            String    @db.Uuid
+  project              Project   @relation(fields: [projectId], references: [id])
+  wbsNodeId            String?   @db.Uuid
+  wbsNode              WBSNode?  @relation(fields: [wbsNodeId], references: [id])
+  rfiNo                String    @unique @db.VarChar(50)
+  subject              String    @db.VarChar(300)
+  question             String    @db.Text
+  discipline           String?   @db.VarChar(50)
+  status               RFIStatus @default(DRAFT)
+  priority             String    @default("NORMAL") @db.VarChar(20)
+  requiredResponseDate DateTime?
+  issuedBy             String    @db.Uuid
+  issuedAt             DateTime?
+  respondedBy          String?   @db.Uuid
+  respondedAt          DateTime?
+  response             String?   @db.Text
+  costImpact           Decimal?  @db.Decimal(18, 2)
+  timeImpactDays       Int?
+  attachments          Json[]    @default([])
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([tenantId, projectId, status])
+  @@index([tenantId, status])
+  @@map("rfis")
+}
+
+// ─────────────────────────────────────────
+// PROGRESS CLAIM — §22
+// ─────────────────────────────────────────
+
+model ProgressClaim {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String        @db.Uuid
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+  projectId        String        @db.Uuid
+  project          Project       @relation(fields: [projectId], references: [id])
+  budgetVersionId  String        @db.Uuid
+  budgetVersion    BudgetVersion @relation(fields: [budgetVersionId], references: [id])
+  claimNo          String        @unique @db.VarChar(50)
+  claimPeriodStart DateTime
+  claimPeriodEnd   DateTime
+  status           ClaimStatus   @default(DRAFT)
+  contractValue    Decimal       @db.Decimal(18, 2)
+  cumulativePct    Decimal       @default(0) @db.Decimal(5, 2)
+  thisPeriodPct    Decimal       @default(0) @db.Decimal(5, 2)
+  dppAmount        Decimal       @default(0) @db.Decimal(18, 2)
+  ppnAmount        Decimal       @default(0) @db.Decimal(18, 2)
+  pphAmount        Decimal       @default(0) @db.Decimal(18, 2)
+  recoupmentAmount Decimal       @default(0) @db.Decimal(18, 2)
+  retentionAmount  Decimal       @default(0) @db.Decimal(18, 2)
+  netCashIn        Decimal       @default(0) @db.Decimal(18, 2)
+  taxCalculation   Json?
+  taxRateCode      String        @default("JK-01") @db.VarChar(10)
+  recoupmentPct    Decimal       @default(0) @db.Decimal(5, 2)
+  retentionPct     Decimal       @default(5) @db.Decimal(5, 2)
+  submittedBy      String?       @db.Uuid
+  submittedAt      DateTime?
+  approvedBy       String?       @db.Uuid
+  approvedAt       DateTime?
+  certifiedBy      String?       @db.Uuid
+  certifiedAt      DateTime?
+  notes            String?       @db.Text
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  createdBy        String        @db.Uuid
+
+  lines ProgressClaimLine[]
+
+  @@index([tenantId, projectId, status])
+  @@map("progress_claims")
+}
+
+model ProgressClaimLine {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claimId         String        @db.Uuid
+  claim           ProgressClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  wbsNodeId       String        @db.Uuid
+  wbsNode         WBSNode       @relation(fields: [wbsNodeId], references: [id])
+  rabLineId       String?       @db.Uuid
+  description     String        @db.VarChar(300)
+  unit            String        @db.VarChar(20)
+  contractQty     Decimal       @db.Decimal(15, 4)
+  contractRate    Decimal       @db.Decimal(18, 2)
+  contractAmount  Decimal       @db.Decimal(18, 2)
+  prevClaimedPct  Decimal       @default(0) @db.Decimal(5, 2)
+  prevClaimedAmt  Decimal       @default(0) @db.Decimal(18, 2)
+  thisClaimPct    Decimal       @default(0) @db.Decimal(5, 2)
+  thisClaimQty    Decimal       @default(0) @db.Decimal(15, 4)
+  thisClaimAmt    Decimal       @default(0) @db.Decimal(18, 2)
+  cumulativePct   Decimal       @default(0) @db.Decimal(5, 2)
+  cumulativeAmt   Decimal       @default(0) @db.Decimal(18, 2)
+  evidenceNotes   String?
+
+  @@index([claimId])
+  @@map("progress_claim_lines")
+}
+
+// ─────────────────────────────────────────
+// DOCUMENT MANAGEMENT — §30
+// ─────────────────────────────────────────
+
+model Document {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String             @db.Uuid
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  projectId   String             @db.Uuid
+  project     Project            @relation(fields: [projectId], references: [id])
+  docNo       String             @unique @db.VarChar(80)
+  title       String             @db.VarChar(400)
+  discipline  DocumentDiscipline @default(GENERAL)
+  category    String?            @db.VarChar(100)
+  status      DocumentStatus     @default(DRAFT)
+  currentRev  String             @default("A") @db.VarChar(10)
+  tags        String[]           @default([])
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  createdBy   String             @db.Uuid
+
+  versions DocumentVersion[]
+
+  @@index([tenantId, projectId, status])
+  @@index([tenantId, discipline])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId   String         @db.Uuid
+  document     Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  revision     String         @db.VarChar(10)
+  status       DocumentStatus
+  fileKey      String?        @db.VarChar(500)
+  fileName     String?        @db.VarChar(300)
+  fileSizeByte Int?
+  mimeType     String?        @db.VarChar(100)
+  checksum     String?        @db.VarChar(64)
+  changeNote   String?        @db.VarChar(500)
+  createdAt    DateTime       @default(now())
+  createdBy    String         @db.Uuid
+
+  @@unique([documentId, revision])
+  @@map("document_versions")
+}
+
+// ─────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String           @db.Uuid
+  tenant    Tenant           @relation(fields: [tenantId], references: [id])
+  userId    String           @db.Uuid
+  type      NotificationType
+  title     String           @db.VarChar(200)
+  body      String?          @db.VarChar(500)
+  data      Json?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@index([tenantId])
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────
+// DAILY LOG — Field Diary
+// ─────────────────────────────────────────
+
+model DailyLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String   @db.Uuid
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  projectId     String   @db.Uuid
+  project       Project  @relation(fields: [projectId], references: [id])
+  logDate       DateTime @db.Date
+  weather       String?  @db.VarChar(50)
+  manpowerCount Int      @default(0)
+  workSummary   String?  @db.Text
+  issues        String?  @db.Text
+  materials     Json[]   @default([])
+  equipment     Json[]   @default([])
+  photos        Json[]   @default([])
+  preparedBy    String   @db.Uuid
+  approvedBy    String?  @db.Uuid
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([projectId, logDate])
+  @@index([tenantId, projectId, logDate])
+  @@map("daily_logs")
 }
