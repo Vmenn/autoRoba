@@ -171,12 +171,13 @@ export class JobStateMachineService {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private buildUpdates(
     job: Job,
     toStatus: JobStatus,
     actorId: string,
     opts: TransitionOptions,
-  ): Partial<Job> & { updatedBy: string; status: JobStatus } {
+  ): any {
     const now = new Date();
     const updates: any = { status: toStatus, updatedBy: actorId };
 

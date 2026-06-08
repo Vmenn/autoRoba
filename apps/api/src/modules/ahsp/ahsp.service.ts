@@ -107,7 +107,7 @@ export class AHSPService {
           regionCode,
           calculationDate: calcDate,
         });
-        return { regulationBasis: item.regulationBasis, ...result };
+        return { ...result, regulationBasis: item.regulationBasis as string };
       }),
     );
 
