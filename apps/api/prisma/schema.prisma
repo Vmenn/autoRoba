@@ -1,0 +1,999 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum SubscriptionPlan {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+  GOVERNMENT
+}
+
+enum ProjectType {
+  RESIDENTIAL
+  HIGH_RISE
+  EPC
+  REFINERY
+  INDUSTRIAL_PLANT
+  POWER_PLANT
+  BRIDGE
+  AIRPORT
+  PORT
+  DAM
+  SMART_CITY
+  GOVERNMENT_INFRA
+  TOLL_ROAD
+  OTHER
+}
+
+enum ProjectStatus {
+  DRAFT
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum RegulationBasis {
+  PUPR_28_2016
+  PUPR_1_2022
+  PUPR_8_2023
+  SE_DJBK_68_2024
+  SNI_ABK
+  BOW
+  CUSTOM
+}
+
+enum ComponentType {
+  LABOR
+  MATERIAL
+  EQUIPMENT
+}
+
+enum HSDType {
+  LABOR
+  MATERIAL
+  EQUIPMENT
+}
+
+enum TaxType {
+  PPH_FINAL_CONSTRUCTION
+  PPN
+  PPH_21
+  PPH_23
+  PPH_4_2_LAND
+  PPH_22
+  BEA_MATERAI
+}
+
+enum JobType {
+  FIELD_TASK
+  INSPECTION
+  NCR_REMEDIATION
+  PUNCHLIST_ITEM
+  RFI_RESPONSE
+  APPROVAL_TASK
+  PROCUREMENT_ACTION
+  EQUIPMENT_WORKORDER
+  SAFETY_ACTION
+  DOCUMENT_TASK
+  GENERIC
+}
+
+enum JobPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  BLOCKED
+  SUBMITTED
+  VERIFIED
+  REJECTED
+  CLOSED
+  REOPENED
+  CANCELLED
+}
+
+enum AssigneeType {
+  USER
+  ROLE
+  CREW
+  SUBCONTRACTOR
+}
+
+enum EvidenceType {
+  PHOTO
+  CHECKLIST
+  QUANTITY
+  DOCUMENT
+  TEST_RESULT
+  REINSPECTION
+}
+
+enum RACIRole {
+  RESPONSIBLE
+  ACCOUNTABLE
+  CONSULTED
+  INFORMED
+}
+
+// ─────────────────────────────────────────
+// TENANCY
+// ─────────────────────────────────────────
+
+model Tenant {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code      String           @unique @db.VarChar(50)
+  name      String           @db.VarChar(200)
+  plan      SubscriptionPlan @default(STARTER)
+  isActive  Boolean          @default(true)
+  settings  Json?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  companies      Company[]
+  users          User[]
+  projects       Project[]
+  ahspItems      AHSPItem[]
+  budgetVersions BudgetVersion[]
+  jobs           Job[]
+  sequences      DocumentSequence[]
+  ncrs           NCR[]
+  rfis           RFI[]
+  progressClaims ProgressClaim[]
+  documents      Document[]
+  notifications  Notification[]
+  dailyLogs      DailyLog[]
+
+  @@map("tenants")
+}
+
+model Company {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  code      String   @db.VarChar(20)
+  name      String   @db.VarChar(200)
+  npwp      String?  @db.VarChar(60)
+  address   String?
+  phone     String?  @db.VarChar(30)
+  email     String?  @db.VarChar(200)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String   @db.Uuid
+  updatedBy String   @db.Uuid
+
+  projects      Project[]
+  businessUnits BusinessUnit[]
+
+  @@unique([tenantId, code])
+  @@map("companies")
+}
+
+model BusinessUnit {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String  @db.Uuid
+  company   Company @relation(fields: [companyId], references: [id])
+  code      String  @db.VarChar(20)
+  name      String  @db.VarChar(200)
+  isActive  Boolean @default(true)
+
+  projects Project[]
+
+  @@map("business_units")
+}
+
+// ─────────────────────────────────────────
+// USERS & ROLES
+// ─────────────────────────────────────────
+
+model User {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @db.Uuid
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  email        String    @db.VarChar(200)
+  passwordHash String
+  firstName    String    @db.VarChar(100)
+  lastName     String    @db.VarChar(100)
+  phone        String?   @db.VarChar(30)
+  avatarUrl    String?
+  isActive     Boolean   @default(true)
+  mfaEnabled   Boolean   @default(false)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  roleAssignments  RoleAssignment[]
+  jobsCreated      Job[]            @relation("JobCreatedBy")
+  jobAuditTrails   JobAuditTrail[]
+  jobCollaborators JobCollaborator[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId, isActive])
+  @@map("users")
+}
+
+model Role {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String? @db.Uuid
+  code        String  @db.VarChar(50)
+  name        String  @db.VarChar(100)
+  description String?
+  isSystem    Boolean @default(false)
+  isActive    Boolean @default(true)
+
+  permissions RolePermission[]
+  assignments RoleAssignment[]
+
+  @@unique([tenantId, code])
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  module      String  @db.VarChar(50)
+  action      String  @db.VarChar(50)
+  description String?
+
+  rolePermissions RolePermission[]
+
+  @@unique([module, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roleId       String     @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id])
+  permissionId String     @db.Uuid
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RoleAssignment {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @db.Uuid
+  user       User     @relation(fields: [userId], references: [id])
+  roleId     String   @db.Uuid
+  role       Role     @relation(fields: [roleId], references: [id])
+  projectId  String?  @db.Uuid
+  companyId  String?  @db.Uuid
+  isActive   Boolean  @default(true)
+  assignedAt DateTime @default(now())
+  assignedBy String   @db.Uuid
+
+  @@map("role_assignments")
+}
+
+// ─────────────────────────────────────────
+// MASTER DATA
+// ─────────────────────────────────────────
+
+model Region {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code       String  @unique @db.VarChar(10)
+  name       String  @db.VarChar(100)
+  type       String  @db.VarChar(20)
+  parentCode String? @db.VarChar(10)
+  isActive   Boolean @default(true)
+
+  hsdPrices    HSDMaster[]
+  minimumWages MinimumWage[]
+
+  @@map("regions")
+}
+
+// Harga Satuan Dasar — effective-dated, regional
+model HSDMaster {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String?   @db.Uuid
+  type          HSDType
+  code          String    @db.VarChar(50)
+  name          String    @db.VarChar(200)
+  unit          String    @db.VarChar(20)
+  regionCode    String    @db.VarChar(10)
+  region        Region    @relation(fields: [regionCode], references: [code])
+  price         Decimal   @db.Decimal(18, 2)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  source        String?   @db.VarChar(50)
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     String?   @db.Uuid
+
+  @@index([code, regionCode, effectiveFrom])
+  @@map("hsd_master")
+}
+
+model MinimumWage {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  regionCode    String   @db.VarChar(10)
+  region        Region   @relation(fields: [regionCode], references: [code])
+  wageType      String   @db.VarChar(10)
+  amount        Decimal  @db.Decimal(18, 2)
+  year          Int
+  effectiveFrom DateTime
+  legalBasis    String?
+
+  @@index([regionCode, year])
+  @@map("minimum_wages")
+}
+
+// ─────────────────────────────────────────
+// TAX RATES (effective-dated) — §24 Indonesia Tax Engine
+// ─────────────────────────────────────────
+
+model TaxRate {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code          String    @db.VarChar(10)
+  taxType       TaxType
+  description   String    @db.VarChar(200)
+  qualification String?   @db.VarChar(200)
+  rate          Decimal   @db.Decimal(6, 4)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  legalBasis    String    @db.VarChar(100)
+  isActive      Boolean   @default(true)
+  notes         String?
+
+  @@index([code, effectiveFrom])
+  @@map("tax_rates")
+}
+
+// ─────────────────────────────────────────
+// AHSP ENGINE — §7
+// ─────────────────────────────────────────
+
+model AHSPItem {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String?         @db.Uuid
+  tenant          Tenant?         @relation(fields: [tenantId], references: [id])
+  code            String          @db.VarChar(50)
+  name            String          @db.VarChar(300)
+  unit            String          @db.VarChar(20)
+  category        String?         @db.VarChar(100)
+  discipline      String?         @db.VarChar(50)
+  regulationBasis RegulationBasis @default(PUPR_1_2022)
+  overheadPct     Decimal         @default(10.00) @db.Decimal(5, 2)
+  profitPct       Decimal         @default(5.00) @db.Decimal(5, 2)
+  isActive        Boolean         @default(true)
+  isCustom        Boolean         @default(false)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  createdBy       String?         @db.Uuid
+
+  components AHSPComponent[]
+  rabLines   RABLine[]
+
+  @@unique([tenantId, code, regulationBasis])
+  @@index([code, regulationBasis])
+  @@map("ahsp_items")
+}
+
+model AHSPComponent {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ahspItemId  String        @db.Uuid
+  ahspItem    AHSPItem      @relation(fields: [ahspItemId], references: [id], onDelete: Cascade)
+  type        ComponentType
+  hsdCode     String        @db.VarChar(50)
+  description String        @db.VarChar(200)
+  unit        String        @db.VarChar(20)
+  sortOrder   Int           @default(0)
+
+  coefficients AHSPCoefficient[]
+
+  @@map("ahsp_components")
+}
+
+// Coefficients are versioned and effective-dated per regulation
+model AHSPCoefficient {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  componentId       String        @db.Uuid
+  component         AHSPComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  coefficient       Decimal       @db.Decimal(10, 4)
+  regulationVersion String        @db.VarChar(50)
+  effectiveFrom     DateTime
+  effectiveTo       DateTime?
+  legalBasis        String?       @db.VarChar(100)
+  notes             String?
+  createdAt         DateTime      @default(now())
+  createdBy         String?       @db.Uuid
+
+  @@index([componentId, effectiveFrom])
+  @@map("ahsp_coefficients")
+}
+
+// ─────────────────────────────────────────
+// PROJECT & WBS — §5
+// ─────────────────────────────────────────
+
+model Project {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String        @db.Uuid
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+  companyId        String        @db.Uuid
+  company          Company       @relation(fields: [companyId], references: [id])
+  businessUnitId   String?       @db.Uuid
+  businessUnit     BusinessUnit? @relation(fields: [businessUnitId], references: [id])
+  code             String        @db.VarChar(20)
+  name             String        @db.VarChar(300)
+  type             ProjectType
+  status           ProjectStatus @default(DRAFT)
+  regionCode       String?       @db.VarChar(10)
+  contractValue    Decimal?      @db.Decimal(18, 2)
+  currency         String        @default("IDR") @db.VarChar(3)
+  startDate        DateTime?
+  endDate          DateTime?
+  wbsPrefix        String?       @db.VarChar(10)
+  isBaselineLocked Boolean       @default(false)
+  settings         Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  createdBy        String        @db.Uuid
+  updatedBy        String        @db.Uuid
+
+  wbsNodes       WBSNode[]
+  budgetVersions BudgetVersion[]
+  jobs           Job[]
+  ncrs           NCR[]
+  rfis           RFI[]
+  progressClaims ProgressClaim[]
+  documents      Document[]
+  dailyLogs      DailyLog[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+  @@map("projects")
+}
+
+model WBSNode {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId   String    @db.Uuid
+  project     Project   @relation(fields: [projectId], references: [id])
+  parentId    String?   @db.Uuid
+  parent      WBSNode?  @relation("WBSHierarchy", fields: [parentId], references: [id])
+  children    WBSNode[] @relation("WBSHierarchy")
+  code        String    @db.VarChar(60)
+  name        String    @db.VarChar(300)
+  level       Int       @default(0)
+  sortOrder   Int       @default(0)
+  weight      Decimal   @default(0) @db.Decimal(7, 4)
+  isLocked    Boolean   @default(false)
+  progressPct Decimal   @default(0) @db.Decimal(5, 2)
+  earnedValue Decimal   @default(0) @db.Decimal(18, 2)
+  actualCost  Decimal   @default(0) @db.Decimal(18, 2)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  rabLines          RABLine[]
+  jobs              Job[]
+  ncrs              NCR[]
+  rfis              RFI[]
+  progressClaimLines ProgressClaimLine[]
+
+  @@unique([projectId, code])
+  @@index([projectId, parentId])
+  @@map("wbs_nodes")
+}
+
+// ─────────────────────────────────────────
+// RAB / RAP ENGINE — §6
+// ─────────────────────────────────────────
+
+model BudgetVersion {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String    @db.Uuid
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  projectId   String    @db.Uuid
+  project     Project   @relation(fields: [projectId], references: [id])
+  version     Int       @default(1)
+  name        String    @db.VarChar(100)
+  description String?
+  isBaseline  Boolean   @default(false)
+  isLocked    Boolean   @default(false)
+  lockedAt    DateTime?
+  lockedBy    String?   @db.Uuid
+  totalRAB    Decimal   @default(0) @db.Decimal(18, 2)
+  totalRAP    Decimal   @default(0) @db.Decimal(18, 2)
+  margin      Decimal   @default(0) @db.Decimal(18, 2)
+  marginPct   Decimal   @default(0) @db.Decimal(5, 2)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   String    @db.Uuid
+  updatedBy   String    @db.Uuid
+
+  rabLines       RABLine[]
+  progressClaims ProgressClaim[]
+
+  @@unique([projectId, version])
+  @@map("budget_versions")
+}
+
+model RABLine {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  budgetVersionId String        @db.Uuid
+  budgetVersion   BudgetVersion @relation(fields: [budgetVersionId], references: [id])
+  wbsNodeId       String?       @db.Uuid
+  wbsNode         WBSNode?      @relation(fields: [wbsNodeId], references: [id])
+  ahspItemId      String?       @db.Uuid
+  ahspItem        AHSPItem?     @relation(fields: [ahspItemId], references: [id])
+  parentId        String?       @db.Uuid
+  parent          RABLine?      @relation("BOQHierarchy", fields: [parentId], references: [id])
+  children        RABLine[]     @relation("BOQHierarchy")
+  itemCode        String?       @db.VarChar(50)
+  description     String        @db.VarChar(500)
+  unit            String        @db.VarChar(20)
+  quantity        Decimal       @db.Decimal(15, 4)
+  // RAB — harga jual ke owner (termasuk overhead+profit)
+  hspJual         Decimal       @db.Decimal(18, 2)
+  rabAmount       Decimal       @db.Decimal(18, 2)
+  // RAP — biaya internal
+  hspBiaya        Decimal       @db.Decimal(18, 2)
+  rapAmount       Decimal       @db.Decimal(18, 2)
+  // AHSP breakdown
+  laborCost       Decimal       @default(0) @db.Decimal(18, 2)
+  materialCost    Decimal       @default(0) @db.Decimal(18, 2)
+  equipmentCost   Decimal       @default(0) @db.Decimal(18, 2)
+  overheadAmount  Decimal       @default(0) @db.Decimal(18, 2)
+  profitAmount    Decimal       @default(0) @db.Decimal(18, 2)
+  sortOrder       Int           @default(0)
+  notes           String?
+  regionCode      String?       @db.VarChar(10)
+  calculationDate DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  createdBy       String        @db.Uuid
+  updatedBy       String        @db.Uuid
+
+  @@index([budgetVersionId, wbsNodeId])
+  @@map("rab_lines")
+}
+
+// ─────────────────────────────────────────
+// JOB & TASK MANAGEMENT — §12
+// ─────────────────────────────────────────
+
+model Job {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String       @db.Uuid
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+  projectId       String?      @db.Uuid
+  project         Project?     @relation(fields: [projectId], references: [id])
+  wbsNodeId       String?      @db.Uuid
+  wbsNode         WBSNode?     @relation(fields: [wbsNodeId], references: [id])
+  jobNo           String       @unique @db.VarChar(50)
+  title           String       @db.VarChar(300)
+  description     String?      @db.Text
+  type            JobType      @default(GENERIC)
+  priority        JobPriority  @default(MEDIUM)
+  status          JobStatus    @default(DRAFT)
+  // Assignment
+  assigneeType    AssigneeType?
+  assigneeId      String?      @db.Uuid
+  assigneeName    String?      @db.VarChar(200)
+  // Source reference (NCR/PO/RFI/etc.)
+  sourceRef       Json?
+  wbsRef          String?      @db.VarChar(60)
+  // Scheduling
+  plannedStart    DateTime?
+  dueDate         DateTime?
+  actualStart     DateTime?
+  submittedAt     DateTime?
+  verifiedAt      DateTime?
+  closedAt        DateTime?
+  progressPercent Int          @default(0)
+  // Evidence & SLA
+  requiredEvidence EvidenceType[]
+  completionEvidence Json[]    @default([])
+  sla             Json?
+  geoLocation     Json?
+  // Dependencies
+  blockedByIds    String[]     @db.Uuid
+  // Recurrence
+  recurrence      Json?
+  parentJobId     String?      @db.Uuid
+  // Status-change metadata
+  rejectedReason  String?
+  rejectedBy      String?      @db.Uuid
+  cancelledReason String?
+  cancelledBy     String?      @db.Uuid
+  verifierId      String?      @db.Uuid
+  isDeleted       Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  createdBy       String       @db.Uuid
+  createdByUser   User         @relation("JobCreatedBy", fields: [createdBy], references: [id])
+  updatedBy       String       @db.Uuid
+
+  auditTrail    JobAuditTrail[]
+  collaborators JobCollaborator[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, projectId, status])
+  @@index([assigneeId, status])
+  @@index([tenantId, isDeleted])
+  @@map("jobs")
+}
+
+model JobAuditTrail {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId      String     @db.Uuid
+  job        Job        @relation(fields: [jobId], references: [id])
+  actorId    String     @db.Uuid
+  actor      User       @relation(fields: [actorId], references: [id])
+  fromStatus JobStatus?
+  toStatus   JobStatus
+  note       String?
+  metadata   Json?
+  createdAt  DateTime   @default(now())
+
+  @@index([jobId])
+  @@map("job_audit_trails")
+}
+
+model JobCollaborator {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId    String   @db.Uuid
+  job      Job      @relation(fields: [jobId], references: [id])
+  userId   String   @db.Uuid
+  user     User     @relation(fields: [userId], references: [id])
+  raciRole RACIRole @default(CONSULTED)
+  addedAt  DateTime @default(now())
+  addedBy  String   @db.Uuid
+
+  @@unique([jobId, userId])
+  @@map("job_collaborators")
+}
+
+// ─────────────────────────────────────────
+// DOCUMENT SEQUENCE (auto-numbering) — §21.4
+// ─────────────────────────────────────────
+
+model DocumentSequence {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String  @db.Uuid
+  tenant      Tenant  @relation(fields: [tenantId], references: [id])
+  prefix      String  @db.VarChar(20)
+  projectCode String? @db.VarChar(20)
+  yearMonth   String  @db.VarChar(6)
+  lastSeq     Int     @default(0)
+
+  @@unique([tenantId, prefix, projectCode, yearMonth])
+  @@map("document_sequences")
+}
+
+// ─────────────────────────────────────────
+// PHASE 2+ ENUMS
+// ─────────────────────────────────────────
+
+enum NCRStatus {
+  OPEN
+  UNDER_REVIEW
+  AWAITING_CLOSURE
+  CLOSED
+  VOID
+}
+
+enum RFIStatus {
+  DRAFT
+  ISSUED
+  RESPONDED
+  CLARIFICATION_NEEDED
+  CLOSED
+  VOID
+}
+
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CERTIFIED
+  PAID
+  VOID
+}
+
+enum DocumentStatus {
+  DRAFT
+  IFA
+  IFR
+  IFC
+  IFI
+  APPROVED
+  REJECTED
+  SUPERSEDED
+  VOID
+}
+
+enum DocumentDiscipline {
+  CIVIL
+  STRUCTURAL
+  MECHANICAL
+  ELECTRICAL
+  INSTRUMENTATION
+  PIPING
+  HVAC
+  SAFETY
+  GENERAL
+}
+
+enum NotificationType {
+  JOB_STATUS_CHANGED
+  JOB_ASSIGNED
+  JOB_OVERDUE
+  NCR_RAISED
+  NCR_CLOSED
+  RFI_ISSUED
+  RFI_RESPONDED
+  CLAIM_SUBMITTED
+  CLAIM_APPROVED
+  CLAIM_REJECTED
+  BUDGET_ALERT
+  PROJECT_MILESTONE
+  SYSTEM
+}
+
+// ─────────────────────────────────────────
+// NCR — Non-Conformance Report
+// ─────────────────────────────────────────
+
+model NCR {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String    @db.Uuid
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  projectId        String    @db.Uuid
+  project          Project   @relation(fields: [projectId], references: [id])
+  wbsNodeId        String?   @db.Uuid
+  wbsNode          WBSNode?  @relation(fields: [wbsNodeId], references: [id])
+  ncrNo            String    @unique @db.VarChar(50)
+  title            String    @db.VarChar(300)
+  description      String    @db.Text
+  category         String    @db.VarChar(50)
+  severity         String    @db.VarChar(20)
+  status           NCRStatus @default(OPEN)
+  location         String?   @db.VarChar(200)
+  discipline       String?   @db.VarChar(50)
+  raisedBy         String    @db.Uuid
+  raisedAt         DateTime  @default(now())
+  assignedTo       String?   @db.Uuid
+  dueDate          DateTime?
+  rootCause        String?   @db.Text
+  correctiveAction String?   @db.Text
+  preventiveAction String?   @db.Text
+  closedBy         String?   @db.Uuid
+  closedAt         DateTime?
+  closureNotes     String?   @db.Text
+  evidence         Json[]    @default([])
+  linkedJobId      String?   @db.Uuid
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([tenantId, projectId, status])
+  @@index([tenantId, status])
+  @@map("ncrs")
+}
+
+// ─────────────────────────────────────────
+// RFI — Request for Information
+// ─────────────────────────────────────────
+
+model RFI {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String    @db.Uuid
+  tenant               Tenant    @relation(fields: [tenantId], references: [id])
+  projectId            String    @db.Uuid
+  project              Project   @relation(fields: [projectId], references: [id])
+  wbsNodeId            String?   @db.Uuid
+  wbsNode              WBSNode?  @relation(fields: [wbsNodeId], references: [id])
+  rfiNo                String    @unique @db.VarChar(50)
+  subject              String    @db.VarChar(300)
+  question             String    @db.Text
+  discipline           String?   @db.VarChar(50)
+  status               RFIStatus @default(DRAFT)
+  priority             String    @default("NORMAL") @db.VarChar(20)
+  requiredResponseDate DateTime?
+  issuedBy             String    @db.Uuid
+  issuedAt             DateTime?
+  respondedBy          String?   @db.Uuid
+  respondedAt          DateTime?
+  response             String?   @db.Text
+  costImpact           Decimal?  @db.Decimal(18, 2)
+  timeImpactDays       Int?
+  attachments          Json[]    @default([])
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([tenantId, projectId, status])
+  @@index([tenantId, status])
+  @@map("rfis")
+}
+
+// ─────────────────────────────────────────
+// PROGRESS CLAIM — §22
+// ─────────────────────────────────────────
+
+model ProgressClaim {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String        @db.Uuid
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+  projectId        String        @db.Uuid
+  project          Project       @relation(fields: [projectId], references: [id])
+  budgetVersionId  String        @db.Uuid
+  budgetVersion    BudgetVersion @relation(fields: [budgetVersionId], references: [id])
+  claimNo          String        @unique @db.VarChar(50)
+  claimPeriodStart DateTime
+  claimPeriodEnd   DateTime
+  status           ClaimStatus   @default(DRAFT)
+  contractValue    Decimal       @db.Decimal(18, 2)
+  cumulativePct    Decimal       @default(0) @db.Decimal(5, 2)
+  thisPeriodPct    Decimal       @default(0) @db.Decimal(5, 2)
+  dppAmount        Decimal       @default(0) @db.Decimal(18, 2)
+  ppnAmount        Decimal       @default(0) @db.Decimal(18, 2)
+  pphAmount        Decimal       @default(0) @db.Decimal(18, 2)
+  recoupmentAmount Decimal       @default(0) @db.Decimal(18, 2)
+  retentionAmount  Decimal       @default(0) @db.Decimal(18, 2)
+  netCashIn        Decimal       @default(0) @db.Decimal(18, 2)
+  taxCalculation   Json?
+  taxRateCode      String        @default("JK-01") @db.VarChar(10)
+  recoupmentPct    Decimal       @default(0) @db.Decimal(5, 2)
+  retentionPct     Decimal       @default(5) @db.Decimal(5, 2)
+  submittedBy      String?       @db.Uuid
+  submittedAt      DateTime?
+  approvedBy       String?       @db.Uuid
+  approvedAt       DateTime?
+  certifiedBy      String?       @db.Uuid
+  certifiedAt      DateTime?
+  notes            String?       @db.Text
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  createdBy        String        @db.Uuid
+
+  lines ProgressClaimLine[]
+
+  @@index([tenantId, projectId, status])
+  @@map("progress_claims")
+}
+
+model ProgressClaimLine {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  claimId         String        @db.Uuid
+  claim           ProgressClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  wbsNodeId       String        @db.Uuid
+  wbsNode         WBSNode       @relation(fields: [wbsNodeId], references: [id])
+  rabLineId       String?       @db.Uuid
+  description     String        @db.VarChar(300)
+  unit            String        @db.VarChar(20)
+  contractQty     Decimal       @db.Decimal(15, 4)
+  contractRate    Decimal       @db.Decimal(18, 2)
+  contractAmount  Decimal       @db.Decimal(18, 2)
+  prevClaimedPct  Decimal       @default(0) @db.Decimal(5, 2)
+  prevClaimedAmt  Decimal       @default(0) @db.Decimal(18, 2)
+  thisClaimPct    Decimal       @default(0) @db.Decimal(5, 2)
+  thisClaimQty    Decimal       @default(0) @db.Decimal(15, 4)
+  thisClaimAmt    Decimal       @default(0) @db.Decimal(18, 2)
+  cumulativePct   Decimal       @default(0) @db.Decimal(5, 2)
+  cumulativeAmt   Decimal       @default(0) @db.Decimal(18, 2)
+  evidenceNotes   String?
+
+  @@index([claimId])
+  @@map("progress_claim_lines")
+}
+
+// ─────────────────────────────────────────
+// DOCUMENT MANAGEMENT — §30
+// ─────────────────────────────────────────
+
+model Document {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String             @db.Uuid
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  projectId   String             @db.Uuid
+  project     Project            @relation(fields: [projectId], references: [id])
+  docNo       String             @unique @db.VarChar(80)
+  title       String             @db.VarChar(400)
+  discipline  DocumentDiscipline @default(GENERAL)
+  category    String?            @db.VarChar(100)
+  status      DocumentStatus     @default(DRAFT)
+  currentRev  String             @default("A") @db.VarChar(10)
+  tags        String[]           @default([])
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  createdBy   String             @db.Uuid
+
+  versions DocumentVersion[]
+
+  @@index([tenantId, projectId, status])
+  @@index([tenantId, discipline])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId   String         @db.Uuid
+  document     Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  revision     String         @db.VarChar(10)
+  status       DocumentStatus
+  fileKey      String?        @db.VarChar(500)
+  fileName     String?        @db.VarChar(300)
+  fileSizeByte Int?
+  mimeType     String?        @db.VarChar(100)
+  checksum     String?        @db.VarChar(64)
+  changeNote   String?        @db.VarChar(500)
+  createdAt    DateTime       @default(now())
+  createdBy    String         @db.Uuid
+
+  @@unique([documentId, revision])
+  @@map("document_versions")
+}
+
+// ─────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String           @db.Uuid
+  tenant    Tenant           @relation(fields: [tenantId], references: [id])
+  userId    String           @db.Uuid
+  type      NotificationType
+  title     String           @db.VarChar(200)
+  body      String?          @db.VarChar(500)
+  data      Json?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead, createdAt])
+  @@index([tenantId])
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────
+// DAILY LOG — Field Diary
+// ─────────────────────────────────────────
+
+model DailyLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String   @db.Uuid
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  projectId     String   @db.Uuid
+  project       Project  @relation(fields: [projectId], references: [id])
+  logDate       DateTime @db.Date
+  weather       String?  @db.VarChar(50)
+  manpowerCount Int      @default(0)
+  workSummary   String?  @db.Text
+  issues        String?  @db.Text
+  materials     Json[]   @default([])
+  equipment     Json[]   @default([])
+  photos        Json[]   @default([])
+  preparedBy    String   @db.Uuid
+  approvedBy    String?  @db.Uuid
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([projectId, logDate])
+  @@index([tenantId, projectId, logDate])
+  @@map("daily_logs")
+}
