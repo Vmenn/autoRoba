@@ -52,6 +52,19 @@ export class LeaveService {
     return this.prisma.leaveRequest.update({ where: { id }, data: { status: 'CANCELLED' } });
   }
 
+  async findPending(tenantId: string) {
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.leaveRequest.findMany({
+        where: { tenantId, status: 'PENDING' },
+        include: { user: { select: { firstName: true, lastName: true, email: true } } },
+        orderBy: { createdAt: 'asc' },
+        take: 50,
+      }),
+      this.prisma.leaveRequest.count({ where: { tenantId, status: 'PENDING' } }),
+    ]);
+    return { items, total };
+  }
+
   async review(id: string, dto: ReviewLeaveDto, reviewerId: string, tenantId: string) {
     const leave = await this.prisma.leaveRequest.findFirst({ where: { id, tenantId } });
     if (!leave) throw new NotFoundException('Pengajuan tidak ditemukan');

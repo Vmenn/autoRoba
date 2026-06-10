@@ -47,6 +47,11 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
+
+  // Health check endpoint (used by Docker healthcheck)
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/health', (_req: any, res: any) => res.status(200).json({ status: 'ok', ts: new Date().toISOString() }));
+
   console.log(`🚀 AutoRAB X API running on http://localhost:${port}`);
   console.log(`📖 Swagger docs: http://localhost:${port}/docs`);
 }

@@ -24,6 +24,12 @@ export class LeaveController {
     return this.service.findAll(user.tenantId, user.id, query);
   }
 
+  @Get('pending')
+  @ApiOperation({ summary: 'Semua pengajuan cuti menunggu persetujuan (Manager/HR)' })
+  findPending(@CurrentUser() user: any) {
+    return this.service.findPending(user.tenantId);
+  }
+
   @Patch(':id/cancel')
   @ApiOperation({ summary: 'Batalkan pengajuan cuti' })
   cancel(@Param('id') id: string, @CurrentUser() user: any) {

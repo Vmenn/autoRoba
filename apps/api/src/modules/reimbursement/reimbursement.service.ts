@@ -32,7 +32,13 @@ export class ReimbursementService {
 
     const [items, total] = await this.prisma.$transaction([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.prisma.reimbursement.findMany({ where: where as any, orderBy: { createdAt: 'desc' }, take: 50 }),
+      this.prisma.reimbursement.findMany({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        where: where as any,
+        include: { user: { select: { firstName: true, lastName: true, email: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.prisma.reimbursement.count({ where: where as any }),
     ]);

@@ -27,6 +27,7 @@ export default function AppLayout() {
       <Tabs.Screen name="tasks" options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="✅" label="Tasks" focused={focused} /> }} />
       <Tabs.Screen name="leave" options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🏖" label="Cuti" focused={focused} /> }} />
       <Tabs.Screen name="reimbursement" options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🧾" label="Reimburse" focused={focused} /> }} />
+      <Tabs.Screen name="approval" options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="✍️" label="Approval" focused={focused} /> }} />
     </Tabs>
   );
 }

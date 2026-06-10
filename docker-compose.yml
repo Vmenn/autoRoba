@@ -16,7 +16,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U autoroba"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7-alpine
@@ -43,6 +43,29 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: run migrations + seed then exit
+  migrate:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: autoroba_migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://autoroba:autoroba_secret@postgres:5432/autoroba_dev
+    command: >
+      sh -c "
+        node_modules/.bin/prisma migrate deploy &&
+        node_modules/.bin/prisma db seed
+      "
+    restart: "no"
 
   api:
     build:
@@ -54,17 +77,28 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://autoroba:autoroba_secret@postgres:5432/autoroba_dev
       REDIS_URL: redis://redis:6379
       JWT_SECRET: change-me-in-production-use-strong-secret
       JWT_EXPIRES_IN: 7d
-      NODE_ENV: development
+      NODE_ENV: production
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_ACCESS_KEY: autoroba_minio
+      MINIO_SECRET_KEY: autoroba_minio_secret
+      MINIO_BUCKET: autoroba-files
+      PORT: "3001"
     ports:
       - "3001:3001"
-    volumes:
-      - ./apps/api:/app
-      - /app/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
   web:
     build:
@@ -72,11 +106,13 @@ services:
       dockerfile: Dockerfile
     container_name: autoroba_web
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
     ports:
       - "3000:3000"
+    restart: unless-stopped
 
 volumes:
   postgres_data:
