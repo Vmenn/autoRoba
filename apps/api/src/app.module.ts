@@ -27,6 +27,11 @@ import { DailyLogModule } from './modules/daily-log/daily-log.module';
 import { EquipmentModule } from './modules/equipment/equipment.module';
 import { ProcurementModule } from './modules/procurement/procurement.module';
 import { HSEModule } from './modules/hse/hse.module';
+// Phase 8-11 Modules
+import { VariationOrderModule } from './modules/variation-order/variation-order.module';
+import { ITPModule } from './modules/itp/itp.module';
+import { SubcontractorModule } from './modules/subcontractor/subcontractor.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -56,6 +61,11 @@ import { HSEModule } from './modules/hse/hse.module';
     EquipmentModule,
     ProcurementModule,
     HSEModule,
+    // Phase 8-11
+    VariationOrderModule,
+    ITPModule,
+    SubcontractorModule,
+    AdminModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

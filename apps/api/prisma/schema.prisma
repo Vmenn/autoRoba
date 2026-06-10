@@ -164,6 +164,13 @@ model Tenant {
   purchaseOrders    PurchaseOrder[]
   safetyIncidents   SafetyIncident[]
   permitsToWork     PermitToWork[]
+  variationOrders   VariationOrder[]
+  itpTemplates      ITPTemplate[]
+  inspectionRecords InspectionRecord[]
+  subcontractors    Subcontractor[]
+  subContracts      SubContract[]
+  subContractClaims SubContractClaim[]
+  auditLogs         AuditLog[]
 
   @@map("tenants")
 }
@@ -469,6 +476,9 @@ model Project {
   purchaseOrders      PurchaseOrder[]
   safetyIncidents     SafetyIncident[]
   permitsToWork       PermitToWork[]
+  variationOrders     VariationOrder[]
+  inspectionRecords   InspectionRecord[]
+  subContracts        SubContract[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -1187,4 +1197,262 @@ model PermitToWork {
 
   @@index([tenantId, projectId, status])
   @@map("permits_to_work")
+}
+
+// ─────────────────────────────────────────
+// Phase 8 — Variation Orders
+// ─────────────────────────────────────────
+
+enum VOType {
+  SCOPE_CHANGE
+  DESIGN_CHANGE
+  SITE_CONDITION
+  CLIENT_REQUEST
+  FORCE_MAJEURE
+  OTHER
+}
+
+enum VOStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  VOID
+}
+
+model VariationOrder {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  projectId    String   @db.Uuid
+  project      Project  @relation(fields: [projectId], references: [id])
+  voNumber     String   @unique @db.VarChar(50)
+  title        String   @db.VarChar(300)
+  description  String   @db.Text
+  type         VOType   @default(SCOPE_CHANGE)
+  status       VOStatus @default(DRAFT)
+  valueRAB     Decimal  @default(0) @db.Decimal(18, 2)
+  valueRAP     Decimal  @default(0) @db.Decimal(18, 2)
+  impactDays   Int      @default(0)
+  submittedBy  String   @db.Uuid
+  submittedAt  DateTime?
+  approvedBy   String?  @db.Uuid
+  approvedAt   DateTime?
+  rejectedBy   String?  @db.Uuid
+  rejectedAt   DateTime?
+  rejectReason String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId, projectId, status])
+  @@map("variation_orders")
+}
+
+// ─────────────────────────────────────────
+// Phase 9 — Quality / ITP
+// ─────────────────────────────────────────
+
+enum InspectionType {
+  REVIEW
+  HOLD
+  WITNESS
+  INFORMATION
+}
+
+enum InspectionStatus {
+  PENDING
+  IN_PROGRESS
+  PASSED
+  FAILED
+  PARTIAL
+  VOID
+}
+
+enum CheckResult {
+  PASS
+  FAIL
+  NA
+}
+
+model ITPTemplate {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  code        String   @db.VarChar(50)
+  name        String   @db.VarChar(200)
+  discipline  String   @db.VarChar(100)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String   @db.Uuid
+
+  items       ITPItem[]
+  records     InspectionRecord[]
+
+  @@unique([tenantId, code])
+  @@map("itp_templates")
+}
+
+model ITPItem {
+  id                       String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId               String         @db.Uuid
+  template                 ITPTemplate    @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  itemNo                   String         @db.VarChar(20)
+  activity                 String         @db.VarChar(300)
+  inspectionType           InspectionType @default(WITNESS)
+  referenceDoc             String?        @db.VarChar(200)
+  acceptanceCriteria       String?        @db.Text
+  responsibilityContractor Boolean        @default(true)
+  responsibilityClient     Boolean        @default(false)
+  sortOrder                Int            @default(0)
+
+  @@index([templateId])
+  @@map("itp_items")
+}
+
+model InspectionRecord {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String           @db.Uuid
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  projectId   String           @db.Uuid
+  project     Project          @relation(fields: [projectId], references: [id])
+  templateId  String?          @db.Uuid
+  template    ITPTemplate?     @relation(fields: [templateId], references: [id])
+  recordNo    String           @unique @db.VarChar(50)
+  title       String           @db.VarChar(300)
+  wbsNodeId   String?          @db.Uuid
+  status      InspectionStatus @default(PENDING)
+  inspectedBy String?          @db.Uuid
+  inspectedAt DateTime?
+  remarks     String?          @db.Text
+  createdBy   String           @db.Uuid
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  checkItems  InspectionCheckItem[]
+
+  @@index([tenantId, projectId, status])
+  @@map("inspection_records")
+}
+
+model InspectionCheckItem {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recordId    String           @db.Uuid
+  record      InspectionRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  description String           @db.VarChar(300)
+  result      CheckResult?
+  remark      String?          @db.VarChar(300)
+  sortOrder   Int              @default(0)
+
+  @@index([recordId])
+  @@map("inspection_check_items")
+}
+
+// ─────────────────────────────────────────
+// Phase 10 — Subcontractor Management
+// ─────────────────────────────────────────
+
+enum SPKStatus {
+  ACTIVE
+  COMPLETED
+  TERMINATED
+  SUSPENDED
+}
+
+model Subcontractor {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @db.Uuid
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  code      String   @db.VarChar(30)
+  name      String   @db.VarChar(200)
+  address   String?  @db.Text
+  phone     String?  @db.VarChar(30)
+  email     String?  @db.VarChar(200)
+  npwp      String?  @db.VarChar(60)
+  pkp       Boolean  @default(false)
+  grade     String?  @db.VarChar(10)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String   @db.Uuid
+
+  contracts SubContract[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, isActive])
+  @@map("subcontractors")
+}
+
+model SubContract {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String        @db.Uuid
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  projectId       String        @db.Uuid
+  project         Project       @relation(fields: [projectId], references: [id])
+  subcontractorId String        @db.Uuid
+  subcontractor   Subcontractor @relation(fields: [subcontractorId], references: [id])
+  spkNumber       String        @unique @db.VarChar(50)
+  title           String        @db.VarChar(300)
+  scopeOfWork     String        @db.Text
+  contractValue   Decimal       @db.Decimal(18, 2)
+  startDate       DateTime
+  endDate         DateTime
+  status          SPKStatus     @default(ACTIVE)
+  retention       Decimal       @default(5) @db.Decimal(5, 2)
+  advancePayment  Decimal       @default(0) @db.Decimal(18, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  createdBy       String        @db.Uuid
+
+  claims SubContractClaim[]
+
+  @@index([tenantId, projectId, status])
+  @@map("sub_contracts")
+}
+
+model SubContractClaim {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String      @db.Uuid
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  contractId    String      @db.Uuid
+  contract      SubContract @relation(fields: [contractId], references: [id])
+  claimNo       String      @unique @db.VarChar(50)
+  claimDate     DateTime
+  periodFrom    DateTime
+  periodTo      DateTime
+  claimAmount   Decimal     @db.Decimal(18, 2)
+  progressPct   Decimal     @db.Decimal(5, 2)
+  status        ClaimStatus @default(DRAFT)
+  approvedBy    String?     @db.Uuid
+  approvedAt    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  createdBy     String      @db.Uuid
+
+  @@index([tenantId, contractId])
+  @@map("sub_contract_claims")
+}
+
+// ─────────────────────────────────────────
+// Phase 11 — Audit Log
+// ─────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String   @db.Uuid
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  userId     String   @db.Uuid
+  action     String   @db.VarChar(50)
+  resource   String   @db.VarChar(100)
+  resourceId String?  @db.Uuid
+  summary    String?  @db.VarChar(500)
+  oldData    Json?
+  newData    Json?
+  ipAddress  String?  @db.VarChar(50)
+  userAgent  String?  @db.VarChar(300)
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, resource, createdAt(sort: Desc)])
+  @@index([tenantId, userId, createdAt(sort: Desc)])
+  @@map("audit_logs")
 }

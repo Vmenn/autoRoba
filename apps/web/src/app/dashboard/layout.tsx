@@ -43,13 +43,28 @@ const navGroups = [
     items: [
       { href: '/dashboard/equipment', label: 'Peralatan', icon: '🔧' },
       { href: '/dashboard/procurement', label: 'Pengadaan / PO', icon: '🛒' },
+      { href: '/dashboard/subcontractors', label: 'Subkontraktor', icon: '🤝' },
     ],
   },
   {
-    label: 'HSE',
+    label: 'HSE & QA/QC',
     items: [
       { href: '/dashboard/hse', label: 'K3 & Insiden', icon: '🦺' },
       { href: '/dashboard/hse/permits', label: 'Permit to Work', icon: '📋' },
+      { href: '/dashboard/itp', label: 'Inspeksi (ITP)', icon: '✔️' },
+    ],
+  },
+  {
+    label: 'Kontrak',
+    items: [
+      { href: '/dashboard/variation-orders', label: 'Variation Orders', icon: '📝' },
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      { href: '/dashboard/admin', label: 'Manajemen User', icon: '👥' },
+      { href: '/dashboard/admin/audit-log', label: 'Audit Log', icon: '🔍' },
     ],
   },
 ];
