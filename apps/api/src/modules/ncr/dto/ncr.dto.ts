@@ -1,13 +1,13 @@
-import { IsString, IsOptional, IsDateString, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsIn, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateNCRDto {
-  @ApiProperty() @IsString() projectId: string;
+  @ApiProperty() @IsUUID() projectId: string;
   @ApiProperty() @IsString() title: string;
   @ApiProperty() @IsString() description: string;
   @ApiProperty() @IsString() category: string;
   @ApiProperty() @IsIn(['MINOR', 'MAJOR', 'CRITICAL']) severity: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() wbsNodeId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() wbsNodeId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() location?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() discipline?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() assignedTo?: string;
@@ -24,7 +24,7 @@ export class UpdateNCRDto {
 }
 
 export class NCRQueryDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() projectId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() projectId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() severity?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() discipline?: string;

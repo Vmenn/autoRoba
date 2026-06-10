@@ -1,11 +1,11 @@
-import { IsString, IsOptional, IsDateString, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsNumber, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateRFIDto {
-  @ApiProperty() @IsString() projectId: string;
+  @ApiProperty() @IsUUID() projectId: string;
   @ApiProperty() @IsString() subject: string;
   @ApiProperty() @IsString() question: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() wbsNodeId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() wbsNodeId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() discipline?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() priority?: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() requiredResponseDate?: string;
@@ -18,7 +18,7 @@ export class RespondRFIDto {
 }
 
 export class RFIQueryDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() projectId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() projectId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() discipline?: string;
 }

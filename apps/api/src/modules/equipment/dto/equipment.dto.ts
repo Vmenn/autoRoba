@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsDateString, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsDateString, IsIn, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateEquipmentDto {
@@ -16,7 +16,7 @@ export class CreateEquipmentDto {
 }
 
 export class DeployEquipmentDto {
-  @ApiProperty() @IsString() projectId: string;
+  @ApiProperty() @IsUUID() projectId: string;
   @ApiProperty() @IsDateString() deployedAt: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() returnedAt?: string;
   @ApiPropertyOptional() @IsOptional() @IsNumber() hoursUsed?: number;
@@ -27,5 +27,5 @@ export class DeployEquipmentDto {
 export class EquipmentQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsString() category?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() projectId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() projectId?: string;
 }

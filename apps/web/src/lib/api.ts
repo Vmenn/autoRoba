@@ -26,8 +26,8 @@ api.interceptors.response.use(
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 export const authApi = {
-  login: (email: string, password: string) =>
-    api.post('/v1/auth/login', { email, password }).then((r) => r.data),
+  login: (tenantCode: string, email: string, password: string) =>
+    api.post('/v1/auth/login', { tenantCode, email, password }).then((r) => r.data),
   me: () => api.get('/v1/auth/me').then((r) => r.data),
 };
 

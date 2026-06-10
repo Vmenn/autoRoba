@@ -16,13 +16,18 @@ export class ProgressClaimService {
   async create(dto: CreateProgressClaimDto, tenantId: string, userId: string) {
     const claimNo = await this.generateNo(tenantId, dto.projectId);
 
-    // Calculate line amounts
+    // Calculate line amounts — keep Decimal objects for aggregation, convert to number only for DB storage
+    let dpp = new Decimal(0);
+    let totalContractAmt = new Decimal(0);
+
     const processedLines = dto.lines.map((line) => {
       const contractAmount = new Decimal(line.contractQty).times(line.contractRate);
       const prevAmt = contractAmount.times(line.prevClaimedPct).div(100);
       const thisAmt = contractAmount.times(line.thisClaimPct).div(100);
       const cumulativePct = new Decimal(line.prevClaimedPct).plus(line.thisClaimPct);
       const cumulativeAmt = prevAmt.plus(thisAmt);
+      dpp = dpp.plus(thisAmt);
+      totalContractAmt = totalContractAmt.plus(contractAmount);
       return {
         wbsNodeId: line.wbsNodeId,
         rabLineId: line.rabLineId,
@@ -41,10 +46,6 @@ export class ProgressClaimService {
         evidenceNotes: line.evidenceNotes,
       };
     });
-
-    // DPP = sum of thisClaimAmt
-    const dpp = processedLines.reduce((acc, l) => acc.plus(l.thisClaimAmt), new Decimal(0));
-    const totalContractAmt = processedLines.reduce((acc, l) => acc.plus(l.contractAmount), new Decimal(0));
     const thisPeriodPct = totalContractAmt.isZero() ? new Decimal(0) : dpp.div(totalContractAmt).times(100);
 
     // Tax calculation

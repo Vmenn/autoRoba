@@ -1,8 +1,8 @@
-import { IsString, IsOptional, IsDateString, IsNumber, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsNumber, IsArray, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDailyLogDto {
-  @ApiProperty() @IsString() projectId: string;
+  @ApiProperty() @IsUUID() projectId: string;
   @ApiProperty() @IsDateString() logDate: string;
   @ApiPropertyOptional() @IsOptional() @IsString() weather?: string;
   @ApiPropertyOptional() @IsOptional() @IsNumber() manpowerCount?: number;
@@ -13,7 +13,7 @@ export class CreateDailyLogDto {
 }
 
 export class DailyLogQueryDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() projectId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() projectId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() from?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() to?: string;
 }
