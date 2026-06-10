@@ -23,6 +23,10 @@ import { DocumentModule } from './modules/document/document.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { DailyLogModule } from './modules/daily-log/daily-log.module';
+// Phase 7+ Modules
+import { EquipmentModule } from './modules/equipment/equipment.module';
+import { ProcurementModule } from './modules/procurement/procurement.module';
+import { HSEModule } from './modules/hse/hse.module';
 
 @Module({
   imports: [
@@ -48,6 +52,10 @@ import { DailyLogModule } from './modules/daily-log/daily-log.module';
     NotificationModule,
     AnalyticsModule,
     DailyLogModule,
+    // Phase 7+
+    EquipmentModule,
+    ProcurementModule,
+    HSEModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

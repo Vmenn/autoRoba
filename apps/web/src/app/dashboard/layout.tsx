@@ -38,6 +38,20 @@ const navGroups = [
       { href: '/dashboard/documents', label: 'Dokumen', icon: '📁' },
     ],
   },
+  {
+    label: 'Aset & Pengadaan',
+    items: [
+      { href: '/dashboard/equipment', label: 'Peralatan', icon: '🔧' },
+      { href: '/dashboard/procurement', label: 'Pengadaan / PO', icon: '🛒' },
+    ],
+  },
+  {
+    label: 'HSE',
+    items: [
+      { href: '/dashboard/hse', label: 'K3 & Insiden', icon: '🦺' },
+      { href: '/dashboard/hse/permits', label: 'Permit to Work', icon: '📋' },
+    ],
+  },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

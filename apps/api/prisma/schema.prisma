@@ -154,12 +154,16 @@ model Tenant {
   budgetVersions BudgetVersion[]
   jobs           Job[]
   sequences      DocumentSequence[]
-  ncrs           NCR[]
-  rfis           RFI[]
-  progressClaims ProgressClaim[]
-  documents      Document[]
-  notifications  Notification[]
-  dailyLogs      DailyLog[]
+  ncrs              NCR[]
+  rfis              RFI[]
+  progressClaims    ProgressClaim[]
+  documents         Document[]
+  notifications     Notification[]
+  dailyLogs         DailyLog[]
+  equipment         Equipment[]
+  purchaseOrders    PurchaseOrder[]
+  safetyIncidents   SafetyIncident[]
+  permitsToWork     PermitToWork[]
 
   @@map("tenants")
 }
@@ -456,11 +460,15 @@ model Project {
   wbsNodes       WBSNode[]
   budgetVersions BudgetVersion[]
   jobs           Job[]
-  ncrs           NCR[]
-  rfis           RFI[]
-  progressClaims ProgressClaim[]
-  documents      Document[]
-  dailyLogs      DailyLog[]
+  ncrs                NCR[]
+  rfis                RFI[]
+  progressClaims      ProgressClaim[]
+  documents           Document[]
+  dailyLogs           DailyLog[]
+  equipmentDeployments EquipmentDeployment[]
+  purchaseOrders      PurchaseOrder[]
+  safetyIncidents     SafetyIncident[]
+  permitsToWork       PermitToWork[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -996,4 +1004,187 @@ model DailyLog {
   @@unique([projectId, logDate])
   @@index([tenantId, projectId, logDate])
   @@map("daily_logs")
+}
+
+// ─────────────────────────────────────────
+// EQUIPMENT & MACHINERY — §40
+// ─────────────────────────────────────────
+
+model Equipment {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String   @db.Uuid
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  code          String   @db.VarChar(50)
+  name          String   @db.VarChar(200)
+  category      String   @db.VarChar(100)
+  brand         String?  @db.VarChar(100)
+  model         String?  @db.VarChar(100)
+  serialNo      String?  @db.VarChar(100)
+  status        String   @default("AVAILABLE") @db.VarChar(30)
+  capacityValue Decimal? @db.Decimal(10, 2)
+  capacityUnit  String?  @db.VarChar(20)
+  dailyRate     Decimal? @db.Decimal(18, 2)
+  hourlyRate    Decimal? @db.Decimal(18, 2)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String   @db.Uuid
+
+  deployments EquipmentDeployment[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+  @@map("equipment")
+}
+
+model EquipmentDeployment {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipmentId String    @db.Uuid
+  equipment   Equipment @relation(fields: [equipmentId], references: [id])
+  projectId   String    @db.Uuid
+  project     Project   @relation(fields: [projectId], references: [id])
+  deployedAt  DateTime
+  returnedAt  DateTime?
+  hoursUsed   Decimal?  @db.Decimal(10, 2)
+  location    String?   @db.VarChar(200)
+  operatorName String?  @db.VarChar(100)
+  deployedBy  String    @db.Uuid
+  createdAt   DateTime  @default(now())
+
+  @@index([equipmentId, returnedAt])
+  @@index([projectId, deployedAt])
+  @@map("equipment_deployments")
+}
+
+// ─────────────────────────────────────────
+// PROCUREMENT — Purchase Orders
+// ─────────────────────────────────────────
+
+enum POStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  ISSUED
+  PARTIAL_RECEIVED
+  FULLY_RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  projectId   String   @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id])
+  poNo        String   @unique @db.VarChar(50)
+  vendorName  String   @db.VarChar(200)
+  vendorNPWP  String?  @db.VarChar(60)
+  subject     String   @db.VarChar(300)
+  status      POStatus @default(DRAFT)
+  issueDate   DateTime?
+  deliveryDate DateTime?
+  totalAmount Decimal  @default(0) @db.Decimal(18, 2)
+  currency    String   @default("IDR") @db.VarChar(3)
+  notes       String?  @db.Text
+  approvedBy  String?  @db.Uuid
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String   @db.Uuid
+
+  lines POLine[]
+
+  @@index([tenantId, projectId, status])
+  @@map("purchase_orders")
+}
+
+model POLine {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  poId        String        @db.Uuid
+  po          PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  itemCode    String?       @db.VarChar(50)
+  description String        @db.VarChar(300)
+  unit        String        @db.VarChar(20)
+  quantity    Decimal       @db.Decimal(15, 4)
+  unitPrice   Decimal       @db.Decimal(18, 2)
+  totalPrice  Decimal       @db.Decimal(18, 2)
+  receivedQty Decimal       @default(0) @db.Decimal(15, 4)
+  wbsNodeId   String?       @db.Uuid
+  notes       String?
+
+  @@index([poId])
+  @@map("po_lines")
+}
+
+// ─────────────────────────────────────────
+// HSE — Health, Safety & Environment
+// ─────────────────────────────────────────
+
+enum IncidentSeverity {
+  NEAR_MISS
+  FIRST_AID
+  MEDICAL_TREATMENT
+  LOST_TIME
+  FATALITY
+}
+
+enum IncidentStatus {
+  REPORTED
+  UNDER_INVESTIGATION
+  CORRECTIVE_ACTIONS_DEFINED
+  CLOSED
+}
+
+model SafetyIncident {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String           @db.Uuid
+  tenant           Tenant           @relation(fields: [tenantId], references: [id])
+  projectId        String           @db.Uuid
+  project          Project          @relation(fields: [projectId], references: [id])
+  incidentNo       String           @unique @db.VarChar(50)
+  title            String           @db.VarChar(300)
+  description      String           @db.Text
+  incidentDate     DateTime
+  location         String           @db.VarChar(200)
+  severity         IncidentSeverity
+  status           IncidentStatus   @default(REPORTED)
+  injuredPersons   Int              @default(0)
+  lostTimeDays     Int              @default(0)
+  rootCause        String?          @db.Text
+  correctiveAction String?          @db.Text
+  reportedBy       String           @db.Uuid
+  investigatedBy   String?          @db.Uuid
+  closedBy         String?          @db.Uuid
+  closedAt         DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([tenantId, projectId, severity])
+  @@index([tenantId, status])
+  @@map("safety_incidents")
+}
+
+model PermitToWork {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  projectId   String   @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id])
+  permitNo    String   @unique @db.VarChar(50)
+  permitType  String   @db.VarChar(50)
+  workActivity String  @db.VarChar(300)
+  location    String   @db.VarChar(200)
+  status      String   @default("PENDING") @db.VarChar(20)
+  validFrom   DateTime
+  validTo     DateTime
+  requestedBy String   @db.Uuid
+  approvedBy  String?  @db.Uuid
+  approvedAt  DateTime?
+  riskAssessment String? @db.Text
+  precautions Json[]   @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, projectId, status])
+  @@map("permits_to_work")
 }
