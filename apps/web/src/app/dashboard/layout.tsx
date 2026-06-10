@@ -58,6 +58,20 @@ const navGroups = [
     label: 'Kontrak',
     items: [
       { href: '/dashboard/variation-orders', label: 'Variation Orders', icon: '📝' },
+      { href: '/dashboard/subcontractors', label: 'Subkontraktor', icon: '🤝' },
+    ],
+  },
+  {
+    label: 'Material & Konstruksi',
+    items: [
+      { href: '/dashboard/materials', label: 'Material MTO/MR', icon: '📦' },
+      { href: '/dashboard/punch-list', label: 'Punch List', icon: '✅' },
+    ],
+  },
+  {
+    label: 'Monitoring',
+    items: [
+      { href: '/dashboard/s-curve', label: 'S-Curve', icon: '📈' },
     ],
   },
   {
@@ -65,6 +79,7 @@ const navGroups = [
     items: [
       { href: '/dashboard/admin', label: 'Manajemen User', icon: '👥' },
       { href: '/dashboard/admin/audit-log', label: 'Audit Log', icon: '🔍' },
+      { href: '/dashboard/settings', label: 'Pengaturan', icon: '⚙️' },
     ],
   },
 ];

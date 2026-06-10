@@ -32,6 +32,10 @@ import { VariationOrderModule } from './modules/variation-order/variation-order.
 import { ITPModule } from './modules/itp/itp.module';
 import { SubcontractorModule } from './modules/subcontractor/subcontractor.module';
 import { AdminModule } from './modules/admin/admin.module';
+// Phase 12-14 Modules
+import { MaterialModule } from './modules/material/material.module';
+import { PunchListModule } from './modules/punch-list/punch-list.module';
+import { SCurveModule } from './modules/s-curve/s-curve.module';
 
 @Module({
   imports: [
@@ -66,6 +70,10 @@ import { AdminModule } from './modules/admin/admin.module';
     ITPModule,
     SubcontractorModule,
     AdminModule,
+    // Phase 12-14
+    MaterialModule,
+    PunchListModule,
+    SCurveModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

@@ -171,6 +171,10 @@ model Tenant {
   subContracts      SubContract[]
   subContractClaims SubContractClaim[]
   auditLogs         AuditLog[]
+  materialItems     MaterialItem[]
+  materialReqs      MaterialRequisition[]
+  punchLists        PunchList[]
+  progressSnapshots ProgressSnapshot[]
 
   @@map("tenants")
 }
@@ -479,6 +483,10 @@ model Project {
   variationOrders     VariationOrder[]
   inspectionRecords   InspectionRecord[]
   subContracts        SubContract[]
+  materialItems       MaterialItem[]
+  materialReqs        MaterialRequisition[]
+  punchLists          PunchList[]
+  progressSnapshots   ProgressSnapshot[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -1455,4 +1463,163 @@ model AuditLog {
   @@index([tenantId, resource, createdAt(sort: Desc)])
   @@index([tenantId, userId, createdAt(sort: Desc)])
   @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────
+// Phase 12 — Material Management
+// ─────────────────────────────────────────
+
+enum MRStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PARTIALLY_ISSUED
+  ISSUED
+  CANCELLED
+}
+
+model MaterialItem {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  projectId    String   @db.Uuid
+  project      Project  @relation(fields: [projectId], references: [id])
+  itemCode     String   @db.VarChar(50)
+  description  String   @db.VarChar(300)
+  unit         String   @db.VarChar(20)
+  spec         String?  @db.VarChar(300)
+  qtyBudget    Decimal  @default(0) @db.Decimal(15, 4)
+  qtyOrdered   Decimal  @default(0) @db.Decimal(15, 4)
+  qtyReceived  Decimal  @default(0) @db.Decimal(15, 4)
+  qtyInstalled Decimal  @default(0) @db.Decimal(15, 4)
+  wbsNodeId    String?  @db.Uuid
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  createdBy    String   @db.Uuid
+
+  reqLines     MRLine[]
+
+  @@index([tenantId, projectId])
+  @@map("material_items")
+}
+
+model MaterialRequisition {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  projectId   String   @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id])
+  mrNumber    String   @unique @db.VarChar(50)
+  title       String   @db.VarChar(300)
+  requiredBy  DateTime
+  status      MRStatus @default(DRAFT)
+  remarks     String?  @db.Text
+  requestedBy String   @db.Uuid
+  approvedBy  String?  @db.Uuid
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lines       MRLine[]
+
+  @@index([tenantId, projectId, status])
+  @@map("material_requisitions")
+}
+
+model MRLine {
+  id           String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mrId         String              @db.Uuid
+  mr           MaterialRequisition @relation(fields: [mrId], references: [id], onDelete: Cascade)
+  materialId   String              @db.Uuid
+  material     MaterialItem        @relation(fields: [materialId], references: [id])
+  qtyRequested Decimal             @db.Decimal(15, 4)
+  qtyIssued    Decimal             @default(0) @db.Decimal(15, 4)
+  remarks      String?             @db.VarChar(300)
+
+  @@index([mrId])
+  @@map("mr_lines")
+}
+
+// ─────────────────────────────────────────
+// Phase 13 — Punch List
+// ─────────────────────────────────────────
+
+enum PunchCategory {
+  A
+  B
+  C
+}
+
+enum PunchStatus {
+  OPEN
+  CLEARED
+  ACCEPTED
+  VOID
+}
+
+model PunchList {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @db.Uuid
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  projectId   String   @db.Uuid
+  project     Project  @relation(fields: [projectId], references: [id])
+  listNumber  String   @unique @db.VarChar(50)
+  title       String   @db.VarChar(300)
+  system      String?  @db.VarChar(100)
+  discipline  String?  @db.VarChar(100)
+  walkdownDate DateTime?
+  isCompleted Boolean  @default(false)
+  createdBy   String   @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       PunchItem[]
+
+  @@index([tenantId, projectId])
+  @@map("punch_lists")
+}
+
+model PunchItem {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listId       String        @db.Uuid
+  list         PunchList     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  itemNo       String        @db.VarChar(20)
+  description  String        @db.Text
+  category     PunchCategory @default(B)
+  status       PunchStatus   @default(OPEN)
+  location     String?       @db.VarChar(200)
+  raisedBy     String        @db.Uuid
+  raisedAt     DateTime      @default(now())
+  clearedBy    String?       @db.Uuid
+  clearedAt    DateTime?
+  acceptedBy   String?       @db.Uuid
+  acceptedAt   DateTime?
+  dueDate      DateTime?
+
+  @@index([listId, status])
+  @@map("punch_items")
+}
+
+// ─────────────────────────────────────────
+// Phase 14 — S-Curve / Progress Snapshots
+// ─────────────────────────────────────────
+
+model ProgressSnapshot {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @db.Uuid
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  projectId    String   @db.Uuid
+  project      Project  @relation(fields: [projectId], references: [id])
+  snapshotDate DateTime
+  plannedPct   Decimal  @db.Decimal(7, 4)
+  actualPct    Decimal  @db.Decimal(7, 4)
+  plannedValue Decimal  @default(0) @db.Decimal(18, 2)
+  earnedValue  Decimal  @default(0) @db.Decimal(18, 2)
+  actualCost   Decimal  @default(0) @db.Decimal(18, 2)
+  createdAt    DateTime @default(now())
+  createdBy    String   @db.Uuid
+
+  @@unique([projectId, snapshotDate])
+  @@index([tenantId, projectId, snapshotDate])
+  @@map("progress_snapshots")
 }
