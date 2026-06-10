@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsBoolean, IsDateString, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsBoolean, IsDateString, IsNumber, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSubcontractorDto {
@@ -13,8 +13,8 @@ export class CreateSubcontractorDto {
 }
 
 export class CreateSPKDto {
-  @ApiProperty() @IsString() projectId: string;
-  @ApiProperty() @IsString() subcontractorId: string;
+  @ApiProperty() @IsUUID() projectId: string;
+  @ApiProperty() @IsUUID() subcontractorId: string;
   @ApiProperty() @IsString() title: string;
   @ApiProperty() @IsString() scopeOfWork: string;
   @ApiProperty() @IsNumber() contractValue: number;
@@ -33,6 +33,6 @@ export class CreateSPKClaimDto {
 }
 
 export class SubcontractorQueryDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() projectId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() projectId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
 }

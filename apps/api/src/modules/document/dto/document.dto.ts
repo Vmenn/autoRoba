@@ -1,8 +1,8 @@
-import { IsString, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsUUID, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDocumentDto {
-  @ApiProperty() @IsString() projectId: string;
+  @ApiProperty() @IsUUID() projectId: string;
   @ApiProperty() @IsString() title: string;
   @ApiPropertyOptional() @IsOptional() @IsString() discipline?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() category?: string;
@@ -11,14 +11,14 @@ export class CreateDocumentDto {
 
 export class AddVersionDto {
   @ApiProperty() @IsString() revision: string;
-  @ApiProperty() @IsString() status: string;
+  @ApiProperty() @IsIn(['DRAFT', 'IFA', 'IFR', 'IFC', 'IFI']) status: string;
   @ApiPropertyOptional() @IsOptional() @IsString() fileName?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() fileKey?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() changeNote?: string;
 }
 
 export class DocumentQueryDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() projectId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() projectId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() discipline?: string;
 }

@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth';
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
+  const [tenantCode, setTenantCode] = useState('DEMO');
   const [email, setEmail] = useState('admin@demo.com');
   const [password, setPassword] = useState('Demo@1234');
   const [error, setError] = useState('');
@@ -17,7 +18,7 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      await login(email, password);
+      await login(tenantCode, email, password);
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Login gagal');
@@ -42,6 +43,18 @@ export default function LoginPage() {
               {error}
             </div>
           )}
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">Kode Tenant</label>
+            <input
+              type="text"
+              value={tenantCode}
+              onChange={(e) => setTenantCode(e.target.value.toUpperCase())}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="e.g. DEMO"
+              required
+            />
+          </div>
 
           <div className="space-y-1">
             <label className="text-sm font-medium text-gray-700">Email</label>
@@ -74,7 +87,7 @@ export default function LoginPage() {
           </button>
 
           <p className="text-xs text-gray-400 text-center">
-            Demo: admin@demo.com / Demo@1234
+            Demo: DEMO / admin@demo.com / Demo@1234
           </p>
         </form>
       </div>

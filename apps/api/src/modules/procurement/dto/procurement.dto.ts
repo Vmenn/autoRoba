@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsString, IsOptional, IsNumber, IsDateString, IsArray, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsDateString, IsArray, ValidateNested, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class POLineDto {
@@ -8,12 +8,12 @@ export class POLineDto {
   @ApiProperty() @IsString() unit: string;
   @ApiProperty() @IsNumber() quantity: number;
   @ApiProperty() @IsNumber() unitPrice: number;
-  @ApiPropertyOptional() @IsOptional() @IsString() wbsNodeId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() wbsNodeId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
 }
 
 export class CreatePODto {
-  @ApiProperty() @IsString() projectId: string;
+  @ApiProperty() @IsUUID() projectId: string;
   @ApiProperty() @IsString() vendorName: string;
   @ApiPropertyOptional() @IsOptional() @IsString() vendorNPWP?: string;
   @ApiProperty() @IsString() subject: string;
@@ -25,6 +25,6 @@ export class CreatePODto {
 }
 
 export class POQueryDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() projectId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() projectId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
 }

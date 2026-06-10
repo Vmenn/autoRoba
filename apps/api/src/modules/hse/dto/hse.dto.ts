@@ -1,8 +1,8 @@
-import { IsString, IsOptional, IsDateString, IsNumber, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsNumber, IsIn, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateIncidentDto {
-  @ApiProperty() @IsString() projectId: string;
+  @ApiProperty() @IsUUID() projectId: string;
   @ApiProperty() @IsString() title: string;
   @ApiProperty() @IsString() description: string;
   @ApiProperty() @IsDateString() incidentDate: string;
@@ -14,8 +14,9 @@ export class CreateIncidentDto {
 }
 
 export class CreatePTWDto {
-  @ApiProperty() @IsString() projectId: string;
-  @ApiProperty() @IsString() permitType: string;
+  @ApiProperty() @IsUUID() projectId: string;
+  @ApiProperty() @IsIn(['HOT_WORK','CONFINED_SPACE','WORKING_AT_HEIGHT','ELECTRICAL','EXCAVATION','GENERAL'])
+  permitType: string;
   @ApiProperty() @IsString() workActivity: string;
   @ApiProperty() @IsString() location: string;
   @ApiProperty() @IsDateString() validFrom: string;
@@ -24,7 +25,7 @@ export class CreatePTWDto {
 }
 
 export class HSEQueryDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() projectId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() projectId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() severity?: string;
 }

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsIn, IsArray, ValidateNested, IsNumber, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsIn, IsArray, ValidateNested, IsNumber, IsBoolean, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -21,10 +21,10 @@ export class ITPItemDto {
 }
 
 export class CreateInspectionRecordDto {
-  @ApiProperty() @IsString() projectId: string;
+  @ApiProperty() @IsUUID() projectId: string;
   @ApiProperty() @IsString() title: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() templateId?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() wbsNodeId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() templateId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() wbsNodeId?: string;
   @ApiPropertyOptional() @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => CheckItemDto)
   checkItems?: CheckItemDto[];
 }
@@ -36,6 +36,6 @@ export class CheckItemDto {
 }
 
 export class ITPQueryDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() projectId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() projectId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
 }
