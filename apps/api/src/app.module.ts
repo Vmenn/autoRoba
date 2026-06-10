@@ -36,6 +36,10 @@ import { AdminModule } from './modules/admin/admin.module';
 import { MaterialModule } from './modules/material/material.module';
 import { PunchListModule } from './modules/punch-list/punch-list.module';
 import { SCurveModule } from './modules/s-curve/s-curve.module';
+// Phase 15 — Mobile Modules
+import { AttendanceModule } from './modules/attendance/attendance.module';
+import { LeaveModule } from './modules/leave/leave.module';
+import { ReimbursementModule } from './modules/reimbursement/reimbursement.module';
 
 @Module({
   imports: [
@@ -74,6 +78,10 @@ import { SCurveModule } from './modules/s-curve/s-curve.module';
     MaterialModule,
     PunchListModule,
     SCurveModule,
+    // Phase 15 — Mobile
+    AttendanceModule,
+    LeaveModule,
+    ReimbursementModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

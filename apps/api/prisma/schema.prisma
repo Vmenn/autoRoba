@@ -175,6 +175,9 @@ model Tenant {
   materialReqs      MaterialRequisition[]
   punchLists        PunchList[]
   progressSnapshots ProgressSnapshot[]
+  attendances       Attendance[]
+  leaveRequests     LeaveRequest[]
+  reimbursements    Reimbursement[]
 
   @@map("tenants")
 }
@@ -239,6 +242,9 @@ model User {
   jobsCreated      Job[]            @relation("JobCreatedBy")
   jobAuditTrails   JobAuditTrail[]
   jobCollaborators JobCollaborator[]
+  attendances      Attendance[]
+  leaveRequests    LeaveRequest[]
+  reimbursements   Reimbursement[]
 
   @@unique([tenantId, email])
   @@index([tenantId, isActive])
@@ -487,6 +493,7 @@ model Project {
   materialReqs        MaterialRequisition[]
   punchLists          PunchList[]
   progressSnapshots   ProgressSnapshot[]
+  attendances         Attendance[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
@@ -1622,4 +1629,135 @@ model ProgressSnapshot {
   @@unique([projectId, snapshotDate])
   @@index([tenantId, projectId, snapshotDate])
   @@map("progress_snapshots")
+}
+
+// ─────────────────────────────────────────
+// Phase 15 — Attendance
+// ─────────────────────────────────────────
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+}
+
+model Attendance {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String           @db.Uuid
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  userId        String           @db.Uuid
+  user          User             @relation(fields: [userId], references: [id])
+  projectId     String?          @db.Uuid
+  project       Project?         @relation(fields: [projectId], references: [id])
+  date          DateTime         @db.Date
+  checkInTime   DateTime?
+  checkOutTime  DateTime?
+  checkInLat    Decimal?         @db.Decimal(10, 7)
+  checkInLng    Decimal?         @db.Decimal(10, 7)
+  checkOutLat   Decimal?         @db.Decimal(10, 7)
+  checkOutLng   Decimal?         @db.Decimal(10, 7)
+  status        AttendanceStatus @default(PRESENT)
+  selfieKey     String?          @db.VarChar(500)
+  notes         String?          @db.Text
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([userId, date])
+  @@index([tenantId, userId, date])
+  @@index([tenantId, projectId, date])
+  @@map("attendances")
+}
+
+// ─────────────────────────────────────────
+// Phase 15 — Leave Management
+// ─────────────────────────────────────────
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  EMERGENCY
+  UNPAID
+  MATERNITY
+  PATERNITY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model LeaveRequest {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String      @db.Uuid
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  userId       String      @db.Uuid
+  user         User        @relation(fields: [userId], references: [id])
+  leaveType    LeaveType
+  startDate    DateTime    @db.Date
+  endDate      DateTime    @db.Date
+  totalDays    Int         @default(1)
+  reason       String      @db.Text
+  status       LeaveStatus @default(PENDING)
+  approvedBy   String?     @db.Uuid
+  approvedAt   DateTime?
+  rejectedBy   String?     @db.Uuid
+  rejectedAt   DateTime?
+  rejectReason String?     @db.Text
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([tenantId, userId, status])
+  @@index([tenantId, startDate, endDate])
+  @@map("leave_requests")
+}
+
+// ─────────────────────────────────────────
+// Phase 15 — Reimbursement
+// ─────────────────────────────────────────
+
+enum ReimbursementCategory {
+  TRANSPORT
+  ACCOMMODATION
+  MEAL
+  OFFICE_SUPPLY
+  COMMUNICATION
+  OTHER
+}
+
+enum ReimbursementStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PAID
+}
+
+model Reimbursement {
+  id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String                @db.Uuid
+  tenant        Tenant                @relation(fields: [tenantId], references: [id])
+  userId        String                @db.Uuid
+  user          User                  @relation(fields: [userId], references: [id])
+  claimNo       String                @db.VarChar(50)
+  category      ReimbursementCategory
+  amount        Decimal               @db.Decimal(18, 2)
+  description   String                @db.Text
+  expenseDate   DateTime              @db.Date
+  receiptKey    String?               @db.VarChar(500)
+  status        ReimbursementStatus   @default(DRAFT)
+  approvedBy    String?               @db.Uuid
+  approvedAt    DateTime?
+  rejectedBy    String?               @db.Uuid
+  rejectedAt    DateTime?
+  rejectReason  String?               @db.Text
+  paidAt        DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([tenantId, userId, status])
+  @@map("reimbursements")
 }
