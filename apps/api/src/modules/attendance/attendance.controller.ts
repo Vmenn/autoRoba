@@ -30,6 +30,12 @@ export class AttendanceController {
     return this.service.getToday(user.id);
   }
 
+  @Get('report')
+  @ApiOperation({ summary: 'Rekap absensi seluruh karyawan (Manager/HR)' })
+  findReport(@Query() query: AttendanceQueryDto, @CurrentUser() user: any) {
+    return this.service.findReport(user.tenantId, query);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Riwayat absensi' })
   findAll(@Query() query: AttendanceQueryDto, @CurrentUser() user: any) {

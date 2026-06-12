@@ -60,6 +60,38 @@ export class ReimbursementService {
     return this.prisma.reimbursement.update({ where: { id }, data });
   }
 
+  async findPending(tenantId: string) {
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.reimbursement.findMany({
+        where: { tenantId, status: 'SUBMITTED' },
+        include: { user: { select: { firstName: true, lastName: true, email: true } } },
+        orderBy: { createdAt: 'asc' },
+        take: 100,
+      }),
+      this.prisma.reimbursement.count({ where: { tenantId, status: 'SUBMITTED' } }),
+    ]);
+    return { items, total };
+  }
+
+  async findAllTenant(tenantId: string, query: ReimbursementQueryDto) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = { tenantId };
+    if (query.status) where.status = query.status;
+    if (query.category) where.category = query.category;
+    const [items, total] = await this.prisma.$transaction([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this.prisma.reimbursement.findMany({
+        where: where as any,
+        include: { user: { select: { firstName: true, lastName: true, email: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this.prisma.reimbursement.count({ where: where as any }),
+    ]);
+    return { items, total };
+  }
+
   async markPaid(id: string, tenantId: string) {
     const r = await this.findOne(id, tenantId);
     if (r.status !== 'APPROVED') throw new BadRequestException('Hanya status APPROVED yang bisa dibayar');

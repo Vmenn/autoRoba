@@ -18,6 +18,18 @@ export class ReimbursementController {
     return this.service.create(dto, user.tenantId, user.id);
   }
 
+  @Get('pending')
+  @ApiOperation({ summary: 'Semua reimburse menunggu review (Finance/Manager)' })
+  findPending(@CurrentUser() user: any) {
+    return this.service.findPending(user.tenantId);
+  }
+
+  @Get('all')
+  @ApiOperation({ summary: 'Semua reimburse dalam tenant (Finance/Admin)' })
+  findAllTenant(@Query() query: ReimbursementQueryDto, @CurrentUser() user: any) {
+    return this.service.findAllTenant(user.tenantId, query);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Daftar reimburse saya' })
   findAll(@Query() query: ReimbursementQueryDto, @CurrentUser() user: any) {

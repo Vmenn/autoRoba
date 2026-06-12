@@ -177,6 +177,30 @@ export const notificationApi = {
     api.patch('/v1/notifications/read-all').then((r) => r.data),
 };
 
+// ── HR: Attendance ────────────────────────────────────────────────────────────
+export const attendanceApi = {
+  report: (params?: Record<string, any>) =>
+    api.get('/v1/attendance/report', { params }).then((r) => r.data),
+};
+
+// ── HR: Leave ─────────────────────────────────────────────────────────────────
+export const leaveApi = {
+  pending: () => api.get('/v1/leaves/pending').then((r) => r.data),
+  review: (id: string, action: 'APPROVED' | 'REJECTED', rejectReason?: string) =>
+    api.patch(`/v1/leaves/${id}/review`, { action, rejectReason }).then((r) => r.data),
+};
+
+// ── HR: Reimbursement ────────────────────────────────────────────────────────
+export const hrReimbApi = {
+  all: (params?: Record<string, any>) =>
+    api.get('/v1/reimbursements/all', { params }).then((r) => r.data),
+  pending: () => api.get('/v1/reimbursements/pending').then((r) => r.data),
+  review: (id: string, action: 'APPROVED' | 'REJECTED', rejectReason?: string) =>
+    api.patch(`/v1/reimbursements/${id}/review`, { action, rejectReason }).then((r) => r.data),
+  markPaid: (id: string) =>
+    api.patch(`/v1/reimbursements/${id}/pay`).then((r) => r.data),
+};
+
 // ── Master Data ───────────────────────────────────────────────────────────────
 export const masterDataApi = {
   regions: () => api.get('/v1/master-data/regions').then((r) => r.data),

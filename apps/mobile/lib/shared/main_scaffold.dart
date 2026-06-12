@@ -17,13 +17,13 @@ class MainScaffold extends StatefulWidget {
 class _MainScaffoldState extends State<MainScaffold> {
   int _idx = 0;
 
-  final _screens = const [
-    HomeScreen(),
-    AttendanceScreen(),
-    TasksScreen(),
-    LeaveScreen(),
-    ReimbursementScreen(),
-    ApprovalScreen(),
+  List<Widget> get _screens => [
+    HomeScreen(onSwitchTab: (i) => setState(() => _idx = i)),
+    const AttendanceScreen(),
+    const TasksScreen(),
+    const LeaveScreen(),
+    const ReimbursementScreen(),
+    const ApprovalScreen(),
   ];
 
   @override

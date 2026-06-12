@@ -77,6 +77,30 @@ export class AttendanceService {
     });
   }
 
+  async findReport(tenantId: string, query: AttendanceQueryDto) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = { tenantId };
+    if (query.projectId) where.projectId = query.projectId;
+    if (query.from || query.to) {
+      where.date = {};
+      if (query.from) where.date.gte = new Date(query.from);
+      if (query.to) where.date.lte = new Date(query.to);
+    }
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.attendance.findMany({
+        where: where as any,
+        include: {
+          user: { select: { firstName: true, lastName: true, email: true } },
+          project: { select: { code: true, name: true } },
+        },
+        orderBy: [{ date: 'desc' }, { user: { firstName: 'asc' } }],
+        take: 200,
+      }),
+      this.prisma.attendance.count({ where: where as any }),
+    ]);
+    return { items, total };
+  }
+
   async findAll(tenantId: string, userId: string, query: AttendanceQueryDto) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { tenantId, userId };

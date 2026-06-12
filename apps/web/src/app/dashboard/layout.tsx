@@ -75,6 +75,14 @@ const navGroups = [
     ],
   },
   {
+    label: 'SDM & HR',
+    items: [
+      { href: '/dashboard/hr/attendance', label: 'Rekap Absensi', icon: '📍' },
+      { href: '/dashboard/hr/leave', label: 'Manajemen Cuti', icon: '🏖' },
+      { href: '/dashboard/hr/reimbursement', label: 'Reimbursement', icon: '🧾' },
+    ],
+  },
+  {
     label: 'Admin',
     items: [
       { href: '/dashboard/admin', label: 'Manajemen User', icon: '👥' },
